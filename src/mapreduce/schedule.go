@@ -35,5 +35,23 @@ func schedule(jobName string, mapFiles []string, nReduce int, phase jobPhase, re
 	//
 	var wg sync.WaitGroup
 	wg.Add(ntasks)
-	fmt.Printf("Schedule: %v done\n", phase)
+
+	for i := 0; i != ntasks; i++ {
+		doTaskArgs := DoTaskArgs{jobName, mapFiles[i], phase, i, n_other}
+		go func(doTaskArgs DoTaskArgs, registerChan chan string) {
+			flag := false
+			var address string
+			for flag == false {
+				address = <-registerChan
+				flag = call(address, "Worker.DoTask", doTaskArgs, nil)
+			}
+			go func() {
+				registerChan <- address
+			}()
+			wg.Done()
+		}(doTaskArgs, registerChan)
+	}
+	wg.Wait()
+
+	fmt.Printf("Schedule: %v phase done\n", phase)
 }
